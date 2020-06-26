@@ -19,7 +19,11 @@ name='hive_networkx',
     license='BSD-3',
     packages=["hive_networkx"],
     install_requires=[
-        "pandas",
+        "pandas >= 1",
         "numpy",
+        'scipy >= 1',
+        "networkx >= 2",
+        "matplotlib >= 3",
+        "soothsayer_utils >= 2020.06.26",
       ],
 )
