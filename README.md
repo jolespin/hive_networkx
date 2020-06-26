@@ -26,7 +26,7 @@ pip install git+https://github.com/jolespin/hive_networkx
 #### Usage:
 
 ```python
-import hive_networkx as nx
+import hive_networkx as hx
 ```
 
 Hive plots can be produced from the following objects:
