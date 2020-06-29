@@ -1,6 +1,6 @@
 
 ### Hive NetworkX
-[Hive plots](https://doi.org/10.1093/bib/bbr069) (Martin Krzywinski et al. 2012) and [NetworkX](https://github.com/networkx/networkx) extensions in Python.
+High-level [Hive plot](https://doi.org/10.1093/bib/bbr069) (Martin Krzywinski et al. 2012) implementations using [Matplotlib](https://matplotlib.org/) in Python.  Built on top of [NetworkX](https://github.com/networkx/networkx) and [Pandas](https://pandas.pydata.org/).  
 
 #### Dependencies:
 Compatible for Python 3.
