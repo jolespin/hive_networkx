@@ -33,7 +33,7 @@
 # =======
 # Version
 # =======
-__version__= "2020.06.26"
+__version__= "2020.06.29"
 __author__ = "Josh L. Espinoza"
 __email__ = "jespinoz@jcvi.org, jol.espinoz@gmail.com"
 __url__ = "https://github.com/jolespin/hive_networkx"

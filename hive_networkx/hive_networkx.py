@@ -3,7 +3,7 @@ from __future__ import print_function, division
 
 # Built-ins
 from collections import OrderedDict, defaultdict
-import sys, datetime, copy, warnings, itertools
+import sys, datetime, copy, warnings
 
 # External
 import numpy as np
@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
 from scipy.stats import entropy, mannwhitneyu
 from scipy.spatial.distance import squareform, pdist
+from itertools import combinations
 
 # soothsayer_utils
 from soothsayer_utils import assert_acceptable_arguments, is_symmetrical, is_graph, is_nonstring_iterable, dict_build, is_dict, is_dict_like, is_color, is_number, write_object, format_memory, format_header, check_packages
@@ -41,7 +42,7 @@ def dense_to_condensed(X, name=None, assert_symmetry=True, tol=None):
     if assert_symmetry:
         assert is_symmetrical(X, tol=tol), "`X` is not symmetric with tol=`{}`".format(tol)
     labels = X.index
-    index=pd.Index(list(map(frozenset,itertools.combinations(labels, 2))), name=name)
+    index=pd.Index(list(map(frozenset, combinations(labels, 2))), name=name)
     data = squareform(X, checks=False)
     return pd.Series(data, index=index, name=name)
 
@@ -274,8 +275,8 @@ def topological_overlap_measure(data, into=None, node_type=None, edge_type="topo
 # Symmetrical dataframes represented as augment pd.Series
 class Symmetric(object):
     """
-    An indexable symmetric matrix stored as the lower triangle for space
-    
+    An indexable symmetric matrix stored as the lower triangle for space.
+
     Usage:
     import soothsayer_utils as syu
     import hive_networkx as hx
@@ -367,7 +368,7 @@ class Symmetric(object):
                 assert not np.any(data.isnull()), "Cannot move forward with missing values"
             # From pd.DataFrame object
             if isinstance(data, pd.DataFrame):
-                self._from_pandas_adjacency(data=data, association=association, assert_symmetry=assert_symmetry, nans_ok=nans_ok, tol=tol)
+                self._from_pandas_dataframe(data=data, association=association, assert_symmetry=assert_symmetry, nans_ok=nans_ok, tol=tol)
 
             # From pd.Series object
             if isinstance(data, pd.Series):
@@ -438,24 +439,23 @@ class Symmetric(object):
                         setattr(self, attr, value)
                         
         # Weights
-        self.weights = dict()
+        data = dict()
         for edge_data in data.edges(data=True):
             edge = frozenset(edge_data[:-1])
             weight = edge_data[-1]["weight"]
-            self.weights[edge] = weight
-        self.association = association
-        self.weights = pd.Series(self.weights, name="Weights").sort_index()
-        self.edges = pd.Index(self.weights.index, name="Edges")
-        self.nodes = pd.Index(sorted(frozenset.union(*self.edges)), name="Nodes")
+            data[edge] = weight
+        data = pd.Series(data)
+        self._from_pandas_series(data=data, association=association)
+        
             
-    def _from_pandas_adjacency(self, data:pd.DataFrame, association, assert_symmetry, nans_ok, tol):
+    def _from_pandas_dataframe(self, data:pd.DataFrame, association, assert_symmetry, nans_ok, tol):
         if assert_symmetry:
             assert is_symmetrical(data, tol=tol), "`X` is not symmetric.  Consider dropping the `tol` to a value such as `1e-10` or using `(X+X.T)/2` to force symmetry"
         assert_acceptable_arguments(association, self._acceptable_associations)
         if association == "infer":
             association = self._infer_association(data)
         self.association = association
-        self.nodes = pd.Index(sorted(data.index), name="Nodes")
+        self.nodes = pd.Index(data.index)
         self.diagonal = pd.Series(np.diagonal(data), index=data.index, name="Diagonal")[self.nodes]
         self.weights = dense_to_condensed(data, name="Weights", assert_symmetry=assert_symmetry, tol=tol)
         self.edges = pd.Index(self.weights.index, name="Edges")
@@ -466,38 +466,10 @@ class Symmetric(object):
         if association == "infer":
             association = None
         self.association = association
-        self.weights = pd.Series(data, name="Weights")
-        self.edges = pd.Index(self.weights.index, name="Edges")
-        self.nodes = pd.Index(sorted(frozenset.union(*self.edges)), name="Nodes")
-        
-
-        
-        
-#         if isinstance(data, type(self)):
-#             self.__dict__.update(data.__dict__)
-#             # If there's no `name`, then get `name` of `data`
-#             if self.name is None:
-#                 self.name = data.name            
-#             # If there's no `node_type`, then get `node_type` of `data`
-#             if self.node_type is None:
-#                 self.node_type = data.node_type
-#             # If there's no `edge_type`, then get `edge_type` of `data`
-#             if self.edge_type is None:
-#                 self.edge_type = data.edge_type
-#             # If there's no `func_metric`, then get `func_metric` of `data`
-#             if self.func_metric is None:
-#                 if data.func_metric is not None:
-#                     assert hasattr(func_metric, "__call__"), "`func_metric` must be a function"
-#                     self.func_metric = data.func_metric
-                    
-#             # If there's still no `edge_type` and `func_metric` is not empty, then use this the name of `func_metric`
-#             if (self.edge_type is None) and (self.func_metric is not None):
-#                 self.edge_type = self.func_metric.__name__
-           
-#             # Infer associations
-#             if (association  not in {"infer", None}):
-#                 assert_acceptable_arguments(association, self._acceptable_associations)
-#                 self.association = association
+        # To ensure that the ordering is maintained and this is compatible with methods that use an unlabeled upper triangle, we must reindex and sort
+        self.nodes = pd.Index(sorted(frozenset.union(*data.index)))
+        self.edges = pd.Index(map(frozenset, combinations(self.nodes, r=2)), name="Edges")
+        self.weights = pd.Series(data, name="Weights")[self.edges]
         
     def set_diagonal(self, diagonal):
         if diagonal is None:
@@ -540,7 +512,7 @@ class Symmetric(object):
                 return self.diagonal[list(key)[0]]
             else:
                 if len(key) > 2:
-                    key = list(map(frozenset, itertools.combinations(key, r=2)))
+                    key = list(map(frozenset, combinations(key, r=2)))
                 return self.weights[key]
         else:
             if key in self.nodes:
@@ -807,14 +779,14 @@ class Hive(object):
 #             if self.graph is None:
 #                 self.graph = graph
         if self.nodes_in_hive is None:
-            self.nodes_in_hive = pd.Index(sorted(graph.nodes()), name="Nodes")
+            self.nodes_in_hive = pd.Index(sorted(graph.nodes()))
         if (self.edges_in_hive is None) or (self.weights is None):
             self.weights = dict()
             for edge_data in graph.edges(data=True):
                 edge = frozenset(edge_data[:-1])
                 weight = edge_data[-1]["weight"]
                 self.weights[edge] = weight
-            self.weights = pd.Series(self.weights, name="Weights").sort_index()
+            self.weights = pd.Series(self.weights, name="Weights")#.sort_index()
             self.edges_in_hive = pd.Index(self.weights.index, name="Edges")
 
     # Built-ins
@@ -945,7 +917,7 @@ class Hive(object):
         self.number_of_nodes_ = len(self.nodes_)
         
         # Edges
-        self.edges_ = list(map(frozenset, itertools.combinations(self.nodes_, r=2)))
+        self.edges_ = list(map(frozenset, combinations(self.nodes_, r=2)))
         self.number_of_edges_ = len(self.edges_)
         
         # Axes
@@ -1504,7 +1476,7 @@ class Hive(object):
         _symmetric_kws.update(symmetric_kws)
         if nodes is not None:
             assert set(nodes) <= set(self.nodes_in_hive), "Not all `nodes` available in Hive"
-            edges = list(itertools.combinations(nodes, r=2))
+            edges = list(combinations(nodes, r=2))
             weights = self.weights[edges]
         else:
             weights = self.weights
