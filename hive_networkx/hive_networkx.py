@@ -180,7 +180,7 @@ def connectivity(data, groups:pd.Series=None, include_self_loops=False, tol=1e-1
         #kWithin
         k_within = list()
         for group in groups.unique():
-            idx_nodes = groups[lambda x: x == group].index
+            idx_nodes = groups[lambda x: x == group].index & df_dense.index
             k_group = df_dense.loc[idx_nodes,idx_nodes].sum(axis=1)
             k_within.append(k_group)
         data_connectivity["kWithin"] = pd.concat(k_within)
@@ -577,6 +577,8 @@ class Symmetric(object):
     # Conversion
     # ==========
     def to_dense(self, index=None):
+        if index is None:
+            index = self.nodes
         return condensed_to_dense(y=self.weights, fill_diagonal=self.diagonal, index=index)
 
     def to_condensed(self):
@@ -812,8 +814,8 @@ class Hive(object):
 
     def __call__(self, name_axis=None):
         return self.get_axis_data(name_axis=name_axis)
-    def __getitem__(self, key):
-        return self.kernel[key]
+    # def __getitem__(self, key):
+    #     return self.weights[key]
 
     # Add axis to HivePlot
     def add_axis(self, name_axis, nodes, sizes=None, colors=None, split_axis:bool=False, node_style="o", scatter_kws=dict()):

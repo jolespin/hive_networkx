@@ -17,7 +17,7 @@
 # =======
 # https://opensource.org/licenses/BSD-3-Clause
 #
-# Copyright 2018 Josh L. Espinoza
+# Copyright 2020 Josh L. Espinoza
 #
 # Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
 #
@@ -33,7 +33,7 @@
 # =======
 # Version
 # =======
-__version__= "2020.06.29"
+__version__= "2020.07.17"
 __author__ = "Josh L. Espinoza"
 __email__ = "jespinoz@jcvi.org, jol.espinoz@gmail.com"
 __url__ = "https://github.com/jolespin/hive_networkx"
