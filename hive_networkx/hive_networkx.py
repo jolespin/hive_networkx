@@ -340,7 +340,21 @@ class Symmetric(object):
     Dropped:
     Fix the diagonal arithmetic
     """
-    def __init__(self, data, name=None, node_type=None, edge_type=None, func_metric=None,  association="infer", assert_symmetry=True, nans_ok=True, tol=None, acceptable_associations={"similarity", "dissimilarity", "statistical_test", "network", "infer", None}, **attrs):
+    def __init__(
+        self, 
+        data, 
+        name=None, 
+        node_type=None, 
+        edge_type=None, 
+        func_metric=None,  
+        association="infer", 
+        assert_symmetry=True, 
+        nans_ok=True, 
+        tol=None, 
+        # fillna=np.nan,
+        acceptable_associations={"similarity", "dissimilarity", "statistical_test", "network", "infer", None}, 
+        **attrs,
+        ):
         
         self._acceptable_associations = acceptable_associations
         
@@ -439,12 +453,12 @@ class Symmetric(object):
                         setattr(self, attr, value)
                         
         # Weights
-        data = dict()
+        edge_weights = dict()
         for edge_data in data.edges(data=True):
             edge = frozenset(edge_data[:-1])
             weight = edge_data[-1]["weight"]
-            data[edge] = weight
-        data = pd.Series(data)
+            edge_weights[edge] = weight
+        data = pd.Series(edge_weights)
         self._from_pandas_series(data=data, association=association)
         
             
@@ -1290,12 +1304,17 @@ class Hive(object):
 
                     # Plot node labels
                     # ================
+                    index_labels = node_positions.index
+                    if is_nonstring_iterable(show_node_labels):
+                        index_labels = pd.Index(show_node_labels) & index_labels
+                        show_node_labels = True
+                    
                     if show_node_labels:
                         if not polar:
                             warnings.warn("`show_node_labels` is not available in version: {}".format(__version__))
                         else:
                             horizontalalignment_nodelabels = None
-                            for name_node, r in node_positions.iteritems():  
+                            for name_node, r in node_positions[index_labels].iteritems():  
                                 #! Address this in future version
 #                                 # Vertical axis case
 #                                 vertical_axis_left = (quadrant in {90,270}) and (node_label_position_vertical_axis == "left")
