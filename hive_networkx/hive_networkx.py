@@ -483,7 +483,7 @@ class Symmetric(object):
         # To ensure that the ordering is maintained and this is compatible with methods that use an unlabeled upper triangle, we must reindex and sort
         self.nodes = pd.Index(sorted(frozenset.union(*data.index)))
         self.edges = pd.Index(map(frozenset, combinations(self.nodes, r=2)), name="Edges")
-        self.weights = pd.Series(data, name="Weights")[self.edges]
+        self.weights = pd.Series(data, name="Weights").reindex(self.edges)
         
     def set_diagonal(self, diagonal):
         if diagonal is None:
@@ -1142,87 +1142,88 @@ class Hive(object):
             if not is_color(edge_colors):
                 if is_nonstring_iterable(edge_colors) and not isinstance(edge_colors, pd.Series):
                     edge_colors = pd.Series(edge_colors, index=edges.index)
-            edge_colors = pd.Series(edge_colors[edges.index], name="edge_colors")
-
+            edge_colors = pd.Series(edge_colors[edges.index], name="edge_colors").to_dict()
             # ================
             # Plot edges
             # ================
             # Draw edges
             if show_edges:
                 for (edge, weight) in edges.iteritems():
-                    node_A, node_B = edge
-                    name_axis_A = self.node_mapping_[node_A]
-                    name_axis_B = self.node_mapping_[node_B]
+                    if abs(weight) > 0:
+                        node_A, node_B = edge
+                        name_axis_A = self.node_mapping_[node_A]
+                        name_axis_B = self.node_mapping_[node_B]
 
-                    # Check axis
-                    intraaxis_edge = (name_axis_A == name_axis_B)
+                        # Check axis
+                        intraaxis_edge = (name_axis_A == name_axis_B)
 
-                    # Within axis edges
-                    if intraaxis_edge:
-                        name_consensus_axis = name_axis_A
-                        # Plot edges on split axis
-                        if self.axes[name_consensus_axis]["split_axis"]:
-                            color = edge_colors[edge]
-                            # Draw edges between same axis
-                            # Node A -> B
-                            ax_polar.plot([*self.axes[name_consensus_axis]["theta"]], # Unpack
-                                    [self.axes[name_consensus_axis]["node_positions_normalized"][node_A], self.axes[name_consensus_axis]["node_positions_normalized"][node_B]],
-                                    c=color,
-                                    linewidth=weight,
-                                    **_edge_kws,
+                        # Within axis edges
+                        if intraaxis_edge:
+                            name_consensus_axis = name_axis_A
+                            # Plot edges on split axis
+                            if self.axes[name_consensus_axis]["split_axis"]:
+                                # print(type(edge), edge, edge in edge_colors)
+                                color = edge_colors[edge]
+                                # Draw edges between same axis
+                                # Node A -> B
+                                ax_polar.plot([*self.axes[name_consensus_axis]["theta"]], # Unpack
+                                        [self.axes[name_consensus_axis]["node_positions_normalized"][node_A], self.axes[name_consensus_axis]["node_positions_normalized"][node_B]],
+                                        c=color,
+                                        linewidth=weight,
+                                        **_edge_kws,
+                                )
+                                # Node B -> A
+                                ax_polar.plot([*self.axes[name_consensus_axis]["theta"]], # Unpack
+                                        [self.axes[name_consensus_axis]["node_positions_normalized"][node_B], self.axes[name_consensus_axis]["node_positions_normalized"][node_A]],
+                                        c=color,
+                                        linewidth=weight,
+                                        **_edge_kws,
                             )
-                            # Node B -> A
-                            ax_polar.plot([*self.axes[name_consensus_axis]["theta"]], # Unpack
-                                    [self.axes[name_consensus_axis]["node_positions_normalized"][node_B], self.axes[name_consensus_axis]["node_positions_normalized"][node_A]],
-                                    c=color,
+
+                        # Between axis
+                        if not intraaxis_edge:
+                            axes_ordered = list(self.axes.keys())
+                            terminal_axis_edge = False
+                            # Last connected to the first
+                            if (name_axis_A == axes_ordered[-1]):
+                                if (name_axis_B == axes_ordered[0]):
+                                    thetas = [self.axes[name_axis_A]["theta"].max(), self.axes[name_axis_B]["theta"].min()]
+                                    radii = [self.axes[name_axis_A]["node_positions_normalized"][node_A], self.axes[name_axis_B]["node_positions_normalized"][node_B]]
+                                    terminal_axis_edge = True
+                            # First connected to the last
+                            if (name_axis_A == axes_ordered[0]):
+                                if (name_axis_B == axes_ordered[-1]):
+                                    thetas = [self.axes[name_axis_B]["theta"].max(), self.axes[name_axis_A]["theta"].min()]
+                                    radii = [self.axes[name_axis_B]["node_positions_normalized"][node_B], self.axes[name_axis_A]["node_positions_normalized"][node_A]]
+                                    terminal_axis_edge = True
+                            if not terminal_axis_edge:
+                                if axes_ordered.index(name_axis_A) < axes_ordered.index(name_axis_B):
+                                    thetas = [self.axes[name_axis_A]["theta"].max(), self.axes[name_axis_B]["theta"].min()]
+                                if axes_ordered.index(name_axis_A) > axes_ordered.index(name_axis_B):
+                                    thetas = [self.axes[name_axis_A]["theta"].min(), self.axes[name_axis_B]["theta"].max()]
+                                radii = [self.axes[name_axis_A]["node_positions_normalized"][node_A], self.axes[name_axis_B]["node_positions_normalized"][node_B]]
+
+                            # Radii node positions
+                            #
+                            # Necessary to account for directionality of edge.
+                            # If this doesn't happen then there is a long arc
+                            # going counter clock wise instead of clockwise
+                            # If straight lines were plotted then it would be thetas and radii before adjusting for the curve below
+                            if terminal_axis_edge:
+                                theta_end_rotation = thetas[0]
+                                theta_next_rotation = thetas[1] + np.deg2rad(360)
+                                thetas = [theta_end_rotation, theta_next_rotation]
+                            # Create grid for thetas
+                            t = np.linspace(start=thetas[0], stop=thetas[1], num=granularity)
+                            # Get radii for thetas
+                            radii = interp1d(thetas, radii)(t)
+                            thetas = t
+                            ax_polar.plot(thetas,
+                                    radii,
+                                    c=edge_colors[edge],
                                     linewidth=weight,
                                     **_edge_kws,
-                           )
-
-                    # Between axis
-                    if not intraaxis_edge:
-                        axes_ordered = list(self.axes.keys())
-                        terminal_axis_edge = False
-                        # Last connected to the first
-                        if (name_axis_A == axes_ordered[-1]):
-                            if (name_axis_B == axes_ordered[0]):
-                                thetas = [self.axes[name_axis_A]["theta"].max(), self.axes[name_axis_B]["theta"].min()]
-                                radii = [self.axes[name_axis_A]["node_positions_normalized"][node_A], self.axes[name_axis_B]["node_positions_normalized"][node_B]]
-                                terminal_axis_edge = True
-                        # First connected to the last
-                        if (name_axis_A == axes_ordered[0]):
-                            if (name_axis_B == axes_ordered[-1]):
-                                thetas = [self.axes[name_axis_B]["theta"].max(), self.axes[name_axis_A]["theta"].min()]
-                                radii = [self.axes[name_axis_B]["node_positions_normalized"][node_B], self.axes[name_axis_A]["node_positions_normalized"][node_A]]
-                                terminal_axis_edge = True
-                        if not terminal_axis_edge:
-                            if axes_ordered.index(name_axis_A) < axes_ordered.index(name_axis_B):
-                                thetas = [self.axes[name_axis_A]["theta"].max(), self.axes[name_axis_B]["theta"].min()]
-                            if axes_ordered.index(name_axis_A) > axes_ordered.index(name_axis_B):
-                                thetas = [self.axes[name_axis_A]["theta"].min(), self.axes[name_axis_B]["theta"].max()]
-                            radii = [self.axes[name_axis_A]["node_positions_normalized"][node_A], self.axes[name_axis_B]["node_positions_normalized"][node_B]]
-
-                        # Radii node positions
-                        #
-                        # Necessary to account for directionality of edge.
-                        # If this doesn't happen then there is a long arc
-                        # going counter clock wise instead of clockwise
-                        # If straight lines were plotted then it would be thetas and radii before adjusting for the curve below
-                        if terminal_axis_edge:
-                            theta_end_rotation = thetas[0]
-                            theta_next_rotation = thetas[1] + np.deg2rad(360)
-                            thetas = [theta_end_rotation, theta_next_rotation]
-                        # Create grid for thetas
-                        t = np.linspace(start=thetas[0], stop=thetas[1], num=granularity)
-                        # Get radii for thetas
-                        radii = interp1d(thetas, radii)(t)
-                        thetas = t
-                        ax_polar.plot(thetas,
-                                radii,
-                                c=edge_colors[edge],
-                                linewidth=weight,
-                                **_edge_kws,
-                               )
+                                )
                         
             # ===================
             # Plot axis and nodes
