@@ -1,2 +1,3 @@
+* 2020.09.15 - Import `dict_filter` from soothsayer_utils as it wasn't loaded
 * 2020.08.03 - `show_node_labels` can now take an iterable of nodes to show
 * Fixed error in `convert_network` where graph objects were being incorrectly labeled reinstantiated as an empty dictionary.

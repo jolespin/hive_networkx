@@ -16,7 +16,7 @@ from scipy.spatial.distance import squareform, pdist
 from itertools import combinations
 
 # soothsayer_utils
-from soothsayer_utils import assert_acceptable_arguments, is_symmetrical, is_graph, is_nonstring_iterable, dict_build, is_dict, is_dict_like, is_color, is_number, write_object, format_memory, format_header, check_packages
+from soothsayer_utils import assert_acceptable_arguments, is_symmetrical, is_graph, is_nonstring_iterable, dict_build, dict_filter, is_dict, is_dict_like, is_color, is_number, write_object, format_memory, format_header, check_packages
 try:
     from . import __version__
 except ImportError:
