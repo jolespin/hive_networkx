@@ -24,6 +24,7 @@ name='hive_networkx',
         'scipy >= 1',
         "networkx >= 2",
         "matplotlib >= 3",
-        "soothsayer_utils >= 2020.06.26",
+        "soothsayer_utils >= 2021.03.08",
+        "ensemble_networkx >= 2021.03.09",
       ],
 )

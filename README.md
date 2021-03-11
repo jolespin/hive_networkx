@@ -10,7 +10,7 @@ Compatible for Python 3.
     scipy >= 1
     networkx >= 2
     matplotlib >= 3
-    soothsayer_utils >= 2020.06.26
+    soothsayer_utils >= 2021.03.08
 
 #### Install:
 ```
@@ -31,7 +31,7 @@ import hive_networkx as hx
 
 Hive plots can be produced from the following objects:
 
- * `hx.Symmetric`
+ * `enx.Symmetric`
  * `pd.DataFrame`
  * `nx.Graph`, `nx.OrderedGraph` # Note: `DiGraph` functionality has not been tested but should work as undirected 
 
@@ -39,6 +39,7 @@ Simple case of plotting a small subset of the [iris dataset](https://en.wikipedi
 
 ```python
 import soothsayer_utils as syu
+import ensemble_networkx as enx
 import hive_networkx as hx
 import numpy as np
 import pandas as pd
@@ -61,7 +62,7 @@ for a, b in zip(np.random.RandomState(0).randint(low=0, high=149, size=number_of
         df_sim.values[a,b] = df_sim.values[b,a] = df_sim.values[a,b]*-1
 
 # Create a Symmetric object from the association matrix
-sym_iris = hx.Symmetric(data=df_sim, node_type="iris sample", edge_type=method, name="iris", association="network")
+sym_iris = enx.Symmetric(data=df_sim, node_type="iris sample", edge_type=method, name="iris", association="network")
 # ====================================
 # Symmetric(Name:iris, dtype: float64)
 # ====================================

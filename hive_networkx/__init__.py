@@ -33,7 +33,7 @@
 # =======
 # Version
 # =======
-__version__= "2020.09.15"
+__version__= "2021.03.08"
 __author__ = "Josh L. Espinoza"
 __email__ = "jespinoz@jcvi.org, jol.espinoz@gmail.com"
 __url__ = "https://github.com/jolespin/hive_networkx"
@@ -44,10 +44,11 @@ __developmental__ = True
 # Direct Exports
 # =======
 __functions__ = [
-    'polar_to_cartesian', 'cartesian_to_polar', 'dense_to_condensed', 'condensed_to_dense', 
-    'convert_network', 'normalize_minmax', 'signed', 'connectivity', 'topological_overlap_measure', 
+    'polar_to_cartesian', 
+    'cartesian_to_polar',  
+     'normalize_minmax', 
 ]
-__classes__ = ['Symmetric', 'Hive']
+__classes__ = ['Hive']
 
 __all__ = sorted(__functions__ + __classes__)
 
