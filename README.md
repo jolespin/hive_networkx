@@ -11,6 +11,7 @@ Compatible for Python 3.
     networkx >= 2
     matplotlib >= 3
     soothsayer_utils >= 2021.03.08
+    ensemble_networkx >= 2021.03.09
 
 #### Install:
 ```

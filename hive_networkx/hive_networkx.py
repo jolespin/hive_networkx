@@ -309,7 +309,7 @@ class Hive(object):
         self.axes[name_axis]["sizes"] = pd.Series(sizes[nodes.index], name=(name_axis, "node_sizes"))
 
     # Compile the data for plotting
-    def compile(self, split_theta_degree=None, inner_radius=None, theta_center=90, axis_normalize=True, axis_maximum=1000):
+    def compile(self, axes_theta_degrees=None, split_theta_degree=None, inner_radius=None, theta_center=90, axis_normalize=True, axis_maximum=1000):
         """
         inner_radius should be similar units to axis_maximum
         """
@@ -336,19 +336,28 @@ class Hive(object):
                 self.axes[query_axis]["node_positions_normalized"] = self.axes[query_axis]["node_positions"].copy()
             # Offset the node positions by the inner radius
             self.axes[query_axis]["node_positions_normalized"] = self.axes[query_axis]["node_positions_normalized"] + self.inner_radius
+        # Axis thetas
+        if axes_theta_degrees is not None:
+            assert hasattr(axes_theta_degrees, "__iter__"), "`axes_theta_degrees` must be either None or an iterable of {} angles in degrees".format(number_of_axes)
+            assert len(axes_theta_degrees) == number_of_axes, "`axes_theta_degrees` must be either None or an iterable of {} angles in degrees".format(number_of_axes)
+        if axes_theta_degrees is None:
+            axes_theta_degrees = list()
+            for i in range(number_of_axes):
+                theta_add = (360/number_of_axes)*i
+                axes_theta_degrees.append(theta_add)
 
         # Adjust all of the axes angles
         for i, query_axis in enumerate(self.axes):
             # If the axis is in single mode
+            theta_add = axes_theta_degrees[i] #(360/number_of_axes)*i
             if not self.axes[query_axis]["split_axis"]:
                 # If the query axis is the first then the `theta_add` will be 0
-                theta_add = (360/number_of_axes)*i
                 self.axes[query_axis]["theta"] = np.array([self.theta_center + theta_add])
             else:
-                theta_add = (360/number_of_axes)*i
                 self.axes[query_axis]["theta"] = np.array([self.theta_center + theta_add - split_theta_degree,
                                                            self.theta_center + theta_add + split_theta_degree])
             self.axes[query_axis]["theta"] = np.deg2rad(self.axes[query_axis]["theta"])
+        self.axes_theta_degrees_ = dict(zip(self.axes.keys(), axes_theta_degrees))
 
         # Nodes
         self.nodes_ = list()
@@ -362,6 +371,7 @@ class Hive(object):
         self.number_of_edges_ = len(self.edges_)
         
         # Axes
+        self.number_of_axes_ = number_of_axes
         self.axes_preview_ = pd.Series(dict(zip(self.axes.keys(), map(lambda data:list(data["nodes"]), self.axes.values()))), name="Axes preview")
         self.axes_preview_.index = self.axes_preview_.index.map(lambda name_axis: "{}. {} ({})".format(self.axes_preview_.index.get_loc(name_axis), name_axis, len(self.axes_preview_[name_axis])))
 
@@ -370,7 +380,7 @@ class Hive(object):
 
     def _get_quadrant_info(self, theta_representative):
         # 0/360
-        if theta_representative == np.deg2rad(0):
+        if theta_representative in np.deg2rad([0,360]):
             horizontalalignment = "left"
             verticalalignment = "center"
             quadrant = 0
@@ -410,6 +420,7 @@ class Hive(object):
             horizontalalignment = "left"
             verticalalignment = "top"
             quadrant = 4
+
         return quadrant, horizontalalignment, verticalalignment
 
     def plot(self,
@@ -425,6 +436,7 @@ class Hive(object):
              show_node_labels=False,
              show_polar_grid=False,
              show_cartesian_grid=False,
+             node_label_mapping=None,
              # Colors
              axis_color=None,
              edge_colors=None,
@@ -463,6 +475,8 @@ class Hive(object):
 #              pad_node_label_line = 0,
 #              node_label_position_vertical_axis="right",
             ):
+        if node_label_mapping is None:
+            node_label_mapping = dict()
         polar = True #! Address this in future versions
         assert self.compiled == True, "Please `compile` before plotting"
         accepted_arc_styles = {"curved", "linear"}
@@ -568,6 +582,20 @@ class Hive(object):
                 if is_nonstring_iterable(edge_colors) and not isinstance(edge_colors, pd.Series):
                     edge_colors = pd.Series(edge_colors, index=edges.index)
             edge_colors = pd.Series(edge_colors[edges.index], name="edge_colors").to_dict()
+
+            # Axes label pads
+            if pad_axis_label is None:
+                pad_axis_label = 0
+            if pad_axis_label == "infer":
+                pad_axis_label = list()
+                for i, (name_axis, axes_data) in enumerate(self.axes.items()):
+                    node_positions = axes_data["node_positions_normalized"]
+                    pad_axis_label.append(0.06180339887*(node_positions.max() - node_positions.min()))
+            if isinstance(pad_axis_label, (int,float)):
+                pad_axis_label = [pad_axis_label]*self.number_of_axes_
+            
+            assert hasattr(pad_axis_label, "__iter__"), "`pad_axis_label` must be either None, 'infer', a scalar, or an iterable of {} pads".format(self.number_of_axes_)
+            assert len(pad_axis_label) == self.number_of_axes_, "`pad_axis_label` must be either None, 'infer', a scalar, or an iterable of {} pads".format(self.number_of_axes_) 
             # ================
             # Plot edges
             # ================
@@ -653,7 +681,7 @@ class Hive(object):
             # ===================
             # Plot axis and nodes
             # ===================
-            for name_axis, axes_data in self.axes.items():
+            for i, (name_axis, axes_data) in enumerate(self.axes.items()):
                 # Retrieve
                 node_positions = axes_data["node_positions_normalized"]
                 colors = axes_data["colors"].tolist() # Needs `.tolist()` for Matplotlib version < 2.0.0
@@ -675,7 +703,6 @@ class Hive(object):
                 # Quadrant
                 # =======
                 quadrant, horizontalalignment, verticalalignment = self._get_quadrant_info(theta_representative)
-
                 # Plot axis
                 # =========
                 if show_axis:
@@ -689,13 +716,11 @@ class Hive(object):
                 # Plot axis labels
                 # ================
                 if show_axis_labels:
-                    if pad_axis_label == "infer":
-                        pad_axis_label = 0.06180339887*(node_positions.max() - node_positions.min())
-                        
+
                     ax_polar.text(
                         s = name_axis,
                         x = theta_representative,  
-                        y = node_positions.size + node_positions.max() + pad_axis_label,
+                        y = node_positions.size + node_positions.max() + pad_axis_label[i],
                         horizontalalignment=horizontalalignment,
                         verticalalignment=verticalalignment,                        
                         **_axis_label_kws,
@@ -762,8 +787,10 @@ class Hive(object):
 
                                 # theta_anchor is where the padding ends up
 
+                                # Relabel node
+                                name_node = node_label_mapping.get(name_node, name_node)
                                 # Pad on the right and push label to left
-                                if quadrant in {2,3, 0, 180} :
+                                if quadrant in {2,3, 180} :
                                     node_label = "{}{}".format(name_node,node_padding)
                                     theta_anchor_padding = max(axes_data["theta"])
                                     x, y = polar_to_cartesian(r, theta_anchor_padding)
@@ -773,7 +800,7 @@ class Hive(object):
                                     
                                     
                                 # Pad on the right and push label to left
-                                if quadrant in {1,4, 90, 270} :
+                                if quadrant in {0, 1,4, 90, 270} :
                                     node_label = "{}{}".format(node_padding,name_node)
                                     theta_anchor_padding = min(axes_data["theta"])
                                     x, y = polar_to_cartesian(r, theta_anchor_padding)
@@ -787,15 +814,21 @@ class Hive(object):
                                     [y, y], 
                                     **_node_label_line_kws,
                                 )
-                                # Node label text
-                                ax_cartesian.text(
-                                    x=x_text, 
-                                    y=y, 
-                                    s=node_label, 
-                                    horizontalalignment=horizontalalignment_nodelabels,
-                                    verticalalignment="center",
-                                    **_node_label_kws,
-                                )
+                                if all([
+                                    not axes_data["split_axis"],
+                                    quadrant in {0,180},
+                                ]):
+                                     warnings.warn("Cannot plot node labels when axis is not split for angles 0 or 180 in version: {}".format(__version__))
+                                else:
+                                    # Node label text
+                                    ax_cartesian.text(
+                                        x=x_text, 
+                                        y=y, 
+                                        s=node_label, 
+                                        horizontalalignment=horizontalalignment_nodelabels,
+                                        verticalalignment="center",
+                                        **_node_label_kws,
+                                    )
 
 
              # Adjust limits
