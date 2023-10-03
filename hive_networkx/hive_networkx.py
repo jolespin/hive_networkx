@@ -23,7 +23,7 @@ except ImportError:
     __version__ = "ImportError: attempted relative import with no known parent package"
 
 # ensemble_networkx
-from ensemble_networkx import Symmetric, condensed_to_dense
+from ensemble_networkx import Symmetric, condensed_to_redundant
 
 # ==========
 # Conversion
@@ -379,6 +379,10 @@ class Hive(object):
         self.compiled = True
 
     def _get_quadrant_info(self, theta_representative):
+        # Yes, I know this is not the fastest way w/ all of the conversions but they are fast and it's easier for me to read
+        if theta_representative > np.deg2rad(360):
+            assert theta_representative < np.deg2rad(360)*2, "Please make sure your angle is between [0,720)"
+            theta_representative = theta_representative - np.deg2rad(360)
         # 0/360
         if theta_representative in np.deg2rad([0,360]):
             horizontalalignment = "left"
@@ -420,7 +424,8 @@ class Hive(object):
             horizontalalignment = "left"
             verticalalignment = "top"
             quadrant = 4
-
+        # print(theta_representative, np.rad2deg(theta_representative))
+        # print(quadrant)
         return quadrant, horizontalalignment, verticalalignment
 
     def plot(self,
@@ -875,7 +880,7 @@ class Hive(object):
         if name_axis is not None:
             assert name_axis in self.axes, "{} is not in the available axes for `name_axis`.  Please add and recompile or choose one of the available axes:\n{}".format(name_axis, list(self.axes.keys()))
 
-        df_dense = condensed_to_dense(self.weights, index=self.nodes_)
+        df_dense = condensed_to_redundant(self.weights, index=self.nodes_)
         df_connections = df_dense.groupby(self.node_mapping_, axis=1).sum()
         if name_axis is not None:
             idx_axis_nodes = self.axes[name_axis]["nodes"]
@@ -897,7 +902,7 @@ class Hive(object):
         assert self.compiled == True, "Please `compile` before comparing adjacencies"
         assert_acceptable_arguments(type(data), {pd.DataFrame, Symmetric, Hive})
         if isinstance(data, (Hive, Symmetric)):
-            df_dense__query = condensed_to_dense(data.weights)
+            df_dense__query = condensed_to_redundant(data.weights)
         
         if isinstance(data, pd.DataFrame):
             assert is_symmetric(data, tol=tol)
@@ -971,7 +976,7 @@ class Hive(object):
             assert set(nodes) <= set(self.nodes_in_hive), "Not all `nodes` available in Hive"
         else:
             nodes = self.nodes_in_hive
-        return condensed_to_dense(self.weights, index=nodes, fill_diagonal=fill_diagonal)
+        return condensed_to_redundant(self.weights, index=nodes, fill_diagonal=fill_diagonal)
  
     def copy(self):
         return copy.deepcopy(self)
